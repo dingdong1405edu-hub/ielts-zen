@@ -1,0 +1,246 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id               String    @id @default(cuid())
+  email            String    @unique
+  name             String?
+  passwordHash     String?
+  avatar           String?
+  bandScore        Float?
+  currentBand      Float?
+  isPremium        Boolean   @default(false)
+  premiumExpiresAt DateTime?
+  tokens           Int       @default(30)
+  streak           Int       @default(0)
+  totalXp          Int       @default(0)
+  lastStudiedAt    DateTime?
+  referralCode     String    @unique @default(cuid())
+  referredBy       String?
+  emailVerified    DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  accounts             Account[]
+  sessions             Session[]
+  progress             Progress[]
+  testResults          TestResult[]
+  writingSubmissions   WritingSubmission[]
+  speakingSubmissions  SpeakingSubmission[]
+  referrals            Referral[]           @relation("ReferrerReferrals")
+  subscriptions        Subscription[]
+  activities           Activity[]
+  wordBank             WordBank[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Progress {
+  id          String    @id @default(cuid())
+  userId      String
+  section     String
+  lessonId    String
+  completed   Boolean   @default(false)
+  score       Int?
+  xp          Int       @default(0)
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, section, lessonId])
+}
+
+model TestResult {
+  id        String   @id @default(cuid())
+  userId    String
+  testType  String
+  bandScore Float
+  details   Json
+  duration  Int
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model WritingSubmission {
+  id         String   @id @default(cuid())
+  userId     String
+  taskType   String
+  prompt     String
+  response   String   @db.Text
+  wordCount  Int      @default(0)
+  bandScore  Float?
+  feedback   Json?
+  tokensCost Int      @default(1)
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model SpeakingSubmission {
+  id         String   @id @default(cuid())
+  userId     String
+  part       Int
+  question   String
+  audioUrl   String?
+  transcript String?  @db.Text
+  bandScore  Float?
+  feedback   Json?
+  tokensCost Int      @default(1)
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Subscription {
+  id        String   @id @default(cuid())
+  userId    String
+  plan      String
+  amount    Int
+  stripeId  String?
+  status    String
+  startsAt  DateTime @default(now())
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Referral {
+  id           String   @id @default(cuid())
+  referrerId   String
+  refereeEmail String
+  refereeId    String?
+  firstUsed    Boolean  @default(false)
+  rewardGiven  Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  referrer User @relation("ReferrerReferrals", fields: [referrerId], references: [id], onDelete: Cascade)
+}
+
+model Activity {
+  id     String   @id @default(cuid())
+  userId String
+  date   DateTime @db.Date
+  xp     Int      @default(0)
+  count  Int      @default(1)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+}
+
+model Lesson {
+  id          String   @id @default(cuid())
+  section     String
+  band        Float
+  title       String
+  description String?
+  content     Json
+  xpReward    Int      @default(10)
+  order       Int
+  topic       String?
+  createdAt   DateTime @default(now())
+}
+
+model ReadingTest {
+  id        String   @id @default(cuid())
+  title     String
+  band      Float
+  topic     String?
+  passage   String   @db.Text
+  questions Json
+  timeLimit Int      @default(60)
+  createdAt DateTime @default(now())
+}
+
+model ListeningTest {
+  id         String   @id @default(cuid())
+  title      String
+  band       Float
+  topic      String?
+  audioUrl   String
+  transcript String?  @db.Text
+  questions  Json
+  timeLimit  Int      @default(40)
+  createdAt  DateTime @default(now())
+}
+
+model SpeakingQuestion {
+  id        String   @id @default(cuid())
+  part      Int
+  band      Float
+  question  String
+  topic     String?
+  tips      String?
+  createdAt DateTime @default(now())
+}
+
+model WritingPrompt {
+  id          String   @id @default(cuid())
+  taskType    String
+  band        Float
+  prompt      String
+  topic       String?
+  sampleBand6 String?  @db.Text
+  sampleBand8 String?  @db.Text
+  createdAt   DateTime @default(now())
+}
+
+model WordBank {
+  id         String   @id @default(cuid())
+  userId     String
+  word       String
+  definition String
+  example    String?
+  nextReview DateTime @default(now())
+  interval   Int      @default(1)
+  easeFactor Float    @default(2.5)
+  reviews    Int      @default(0)
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, word])
+}
